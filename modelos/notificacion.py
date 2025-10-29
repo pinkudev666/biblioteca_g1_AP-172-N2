@@ -9,7 +9,7 @@ class Notificacion(Base):
     id_notificacion = Column(Integer, primary_key=True, autoincrement=True)
     mensaje_notificacion = Column(String(255), nullable=False)
     fecha_envio = Column(Date, nullable=False, server_default=text('CURRENT_DATE'))
-    id_prestamo = Column(Integer, ForeignKey('Prestamo.id_prestamo'), nullable=False)
+    id_prestamo = Column(Integer, ForeignKey('prestamo.id_prestamo'), nullable=False)
 
     prestamo = relationship('Prestamo', back_populates='notificaciones')
 
