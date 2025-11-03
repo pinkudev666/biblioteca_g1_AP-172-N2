@@ -1,0 +1,1 @@
+ALTER TABLE usuario ADD COLUMN usuario_activo TINYINT NOT NULL DEFAULT 1; 
