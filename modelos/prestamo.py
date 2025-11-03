@@ -1,5 +1,4 @@
-# modelos/prestamo.py
-from sqlalchemy import Column, Integer, Date, ForeignKey, Enum
+from sqlalchemy import Column, Integer, Date, ForeignKey, Enum, String
 from sqlalchemy.orm import relationship
 from .base import Base
 

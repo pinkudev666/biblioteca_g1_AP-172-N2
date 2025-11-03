@@ -1,4 +1,3 @@
-# modelos/notificacion.py
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, text
 from sqlalchemy.orm import relationship
 from .base import Base

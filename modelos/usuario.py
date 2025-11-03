@@ -1,5 +1,4 @@
-# modelos/usuario.py
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, String, Integer, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from .base import Base
 
@@ -10,6 +9,7 @@ class Usuario(Base):
     nombre_usuario = Column(String(100), nullable=False)
     correo_usuario = Column(String(100), nullable=False, unique=True)
     id_tipo_usuario = Column(Integer, ForeignKey('tipo_usuario.id_tipo_usuario'), nullable=False)
+    usuario_activo = Column(Boolean, default=True)  
 
     # relaciones
     tipo = relationship('Tipo_usuario', back_populates='usuarios')
