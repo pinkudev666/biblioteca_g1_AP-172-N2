@@ -1,17 +1,11 @@
 import sys  
-from pathlib import Path 
+from pathlib import Path
 from prettytable import PrettyTable
 
 # agregar raíz del proyecto al sys.path 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from negocio.negocio_libro import (
-    agregar_libro,
-    obtener_libro_por_nombre,
-    obtener_listado_libros,
-    editar_libro,
-    eliminar_libro
-)
+from negocio.negocio_libro import NegocioLibro
 from datos.conexion import Session as crear_sesion
 
 # ---------- Funciones de interfaz ----------
@@ -44,6 +38,7 @@ def menu_libros():
 
 def main():
     sesion = crear_sesion()
+    negocio = NegocioLibros(sesion)  # Creamos objeto de negocio
     while True:
         opcion = menu_libros()
 
@@ -59,7 +54,7 @@ def main():
                     print("Número de copias inválido, se asigna 0 por defecto.")
                     copias = 0
 
-                libro = agregar_libro(sesion, nombre, isbn, autor, copias)
+                libro = negocio.agregar_libro(nombre, isbn, autor, copias)
                 if libro:
                     print(tabla_libro_unico(libro))
                 else:
@@ -67,15 +62,16 @@ def main():
 
             elif opcion == "2":
                 nombre = input("Nombre del libro a buscar: ")
-                libro = obtener_libro_por_nombre(sesion, nombre)
-                if libro:
-                    print(tabla_libro_unico(libro))
+                libros = negocio.buscar_libros_por_nombre(nombre)
+                if libros:
+                    print(tabla_desde_libros(libros))
                 else:
                     print("Libro NO encontrado.")
 
             elif opcion == "3":
                 nombre = input("Nombre del libro a editar: ")
-                libro = obtener_libro_por_nombre(sesion, nombre)
+                libros = negocio.buscar_libros_por_nombre(nombre)
+                libro = libros[0] if libros else None
                 if libro:
                     nuevo_nombre = input("Nuevo nombre (Enter para mantener): ")
                     nuevo_isbn = input("Nuevo ISBN (Enter para mantener): ")
@@ -91,18 +87,21 @@ def main():
                     else:
                         nuevas_copias = None
 
-                    libro_editado = editar_libro(sesion, libro, nuevo_nombre, nuevo_isbn, nuevo_autor, nuevas_copias)
+                    libro_editado = negocio.editar_libro(
+                        libro, nuevo_nombre, nuevo_isbn, nuevo_autor, nuevas_copias
+                    )
                     print(tabla_libro_unico(libro_editado))
                 else:
                     print("Libro NO encontrado.")
 
             elif opcion == "4":
                 nombre = input("Nombre del libro a eliminar: ")
-                libro = obtener_libro_por_nombre(sesion, nombre)
+                libros = negocio.buscar_libros_por_nombre(nombre)
+                libro = libros[0] if libros else None
                 if libro:
                     confirm = input(f"¿Seguro que quieres eliminar '{libro.nombre_libro}'? (s/n): ")
                     if confirm.lower() == 's':
-                        eliminar_libro(sesion, libro)
+                        negocio.eliminar_libro(libro)
                         print(f'Libro "{libro.nombre_libro}" eliminado.')
                     else:
                         print("Operación cancelada.")
@@ -110,7 +109,7 @@ def main():
                     print("Libro NO encontrado.")
 
             elif opcion == "5":
-                libros = obtener_listado_libros(sesion)
+                libros = negocio.obtener_listado_libros()
                 print(tabla_desde_libros(libros))
 
             elif opcion == "0":
