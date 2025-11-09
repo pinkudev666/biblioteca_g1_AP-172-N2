@@ -20,8 +20,8 @@ class Prestamo(Base):
 
     usuario = relationship('Usuario', back_populates='prestamos')
     libro = relationship('Libro', back_populates='prestamos')
-    multas = relationship('Multa', back_populates='prestamo', cascade='all, delete-orphan')
-    notificaciones = relationship('Notificacion', back_populates='prestamo', cascade='all, delete-orphan')
+    #multas = relationship('Multa', back_populates='prestamo', cascade='all, delete-orphan')
+    #notificaciones = relationship('Notificacion', back_populates='prestamo', cascade='all, delete-orphan')
 
     def __repr__(self) -> str:
         return f"<Prestamo(id={self.id_prestamo}, usuario={self.rut_usuario!r}, libro_id={self.id_libro})>"
