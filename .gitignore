@@ -1,0 +1,8 @@
+__pycache__
+datos/__pycache__/
+datos/*.pyc
+modelos/__pycache__/
+auxiliares/__pycache__/
+negocio/__pycache__/
+
+
