@@ -13,6 +13,7 @@ class Prestamo(Base):
     id_prestamo = Column(Integer, primary_key=True, autoincrement=True)
     fecha_inicio = Column(Date, nullable=False)
     fecha_vencimiento = Column(Date, nullable=False)
+    fecha_devolucion = Column(Date, nullable=True)
     rut_usuario = Column(String(15), ForeignKey('usuario.rut_usuario'), nullable=False)
     id_libro = Column(Integer, ForeignKey('libro.id_libro'), nullable=False)
     estado = Column(estado_enum, nullable=False, server_default='Pendiente')
