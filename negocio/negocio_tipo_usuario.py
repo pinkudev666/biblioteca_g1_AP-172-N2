@@ -17,7 +17,7 @@ class NegocioTipo:
         """Agrega un tipo de usuario por nombre."""
         nombre = nombre.strip()
         if not nombre:
-            print("❌ No se puede agregar un tipo vacío.")
+            print("No se puede agregar un tipo vacío.")
             return None
 
         sesion = Session()
@@ -26,13 +26,13 @@ class NegocioTipo:
                               .filter(Tipo_usuario.tipo_usuario.ilike(nombre))\
                               .first()
             if existente:
-                print(f"⚠️ El tipo '{nombre}' ya existe.")
+                print(f"El tipo '{nombre}' ya existe.")
                 return existente
 
             nuevo_tipo = Tipo_usuario(tipo_usuario=nombre.title())
             sesion.add(nuevo_tipo)
             sesion.commit()
-            print(f"✅ Tipo de usuario '{nombre}' agregado correctamente.")
+            print(f"Tipo de usuario '{nombre}' agregado correctamente.")
             return nuevo_tipo
 
         except Exception as e:
