@@ -38,7 +38,7 @@ def menu_libros():
 
 def main():
     sesion = crear_sesion()
-    negocio = NegocioLibros(sesion)  # Creamos objeto de negocio
+    negocio = NegocioLibro(sesion)  # Creamos objeto de negocio
     while True:
         opcion = menu_libros()
 
