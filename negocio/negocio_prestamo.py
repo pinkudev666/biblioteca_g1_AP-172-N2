@@ -4,50 +4,60 @@ from sqlalchemy.exc import IntegrityError
 from modelos.prestamo import Prestamo
 from modelos.libro import Libro
 from modelos.usuario import Usuario
-from negocio_libro import obtener_libro_por_nombre  # tu función reutilizada
+from negocio.negocio_libro import obtener_libro_por_nombre  
 from auxiliares.validaciones import parse_fecha
 from prettytable import PrettyTable
 from datos.conexion import Session as crear_sesion
-from datetime import date
+from datetime import date, timedelta
 
 # ---------- Lógica de negocio ----------
-def obtener_prestamos(sesion: Session):
-    return sesion.query(Prestamo).all()
-
 def obtener_prestamos_pendientes_por_usuario(sesion: Session, rut_usuario: str):
+    #Retorna todos los préstamos pendientes de un usuario específico (lista vacía si no hay)
     return sesion.query(Prestamo).filter(
         Prestamo.rut_usuario == rut_usuario,
         Prestamo.estado == 'Pendiente'
     ).all()
 
 def obtener_prestamo_por_usuario_y_libro(sesion: Session, rut_usuario: str, nombre_libro: str):
+    # Retorna un préstamo pendiente de un usuario para un libro específico, si existe.
+    libro = obtener_libro_por_nombre(sesion, nombre_libro)
+    if not libro:
+        return None
     prestamos = obtener_prestamos_pendientes_por_usuario(sesion, rut_usuario)
     for p in prestamos:
-        if p.libro and p.libro.nombre_libro and p.libro.nombre_libro.strip() != "":
-            # comparar usando la misma normalización que usa obtener_libro_por_nombre
-            if obtener_libro_por_nombre(sesion, p.libro.nombre_libro) and obtener_libro_por_nombre(sesion, p.libro.nombre_libro).id_libro == obtener_libro_por_nombre(sesion, nombre_libro).id_libro:
-                return p
-        # fallback más simple (por si la relación no está cargada): comparar lower sin tildes opcional
-        # pero tu obtener_libro_por_nombre normaliza, así que la comparativa anterior suele bastar.
-    # alternativa más segura: comparar normalizados directo con strings del objeto libro
-    for p in prestamos:
-        if p.libro and p.libro.nombre_libro:
-            if p.libro.nombre_libro.lower().strip() == nombre_libro.lower().strip():
-                return p
+        if p.id_libro == libro.id_libro:
+            return p
     return None
 
-def agregar_prestamo_por_nombre(sesion: Session, rut_usuario: str, nombre_libro: str, fecha_inicio: date, fecha_vencimiento: date):
+
+def agregar_prestamo_por_nombre(
+    sesion: Session,
+    rut_usuario: str,
+    nombre_libro: str,
+    fecha_inicio: date = None,
+    fecha_vencimiento: date = None
+):
+    # Agrega un préstamo de un libro para un usuario activo, con fechas flexibles.
+    
+    # Obtener usuario
     usuario = sesion.query(Usuario).filter(Usuario.rut_usuario == rut_usuario).first()
     if not usuario:
         return None, "Usuario no existe"
+    if not usuario.usuario_activo:
+        return None, "Usuario inactivo. No puede solicitar préstamos"
 
+    # Obtener libro
     libro = obtener_libro_por_nombre(sesion, nombre_libro)
     if not libro:
         return None, "Libro no encontrado"
-
     if libro.copias_disponibles is None or libro.copias_disponibles <= 0:
         return None, "No quedan copias disponibles"
 
+     # Fechas flexibles: puedes pasar fecha_inicio y fecha_vencimiento, o dejar que se calculen automáticamente
+    fecha_inicio = fecha_inicio or date.today()  # Si no se pasó, hoy
+    fecha_vencimiento = fecha_vencimiento or (fecha_inicio + timedelta(days=5))  # Si no se pasó, 5 días después
+
+    # Crear préstamo
     try:
         nuevo = Prestamo(
             rut_usuario=rut_usuario,
@@ -57,7 +67,7 @@ def agregar_prestamo_por_nombre(sesion: Session, rut_usuario: str, nombre_libro:
             estado='Pendiente'
         )
         sesion.add(nuevo)
-        libro.copias_disponibles = libro.copias_disponibles - 1
+        libro.copias_disponibles -= 1
         sesion.commit()
         return nuevo, None
     except IntegrityError:
@@ -67,31 +77,41 @@ def agregar_prestamo_por_nombre(sesion: Session, rut_usuario: str, nombre_libro:
         sesion.rollback()
         return None, f"Error al crear préstamo: {e}"
 
+
 def editar_prestamo_estado(sesion: Session, prestamo: Prestamo, nuevo_estado: str):
-    """
-    Cambia el estado. Si marcamos como devuelto, devuelve la copia al inventario.
-    """
+    # Cambia el estado de un préstamo y devuelve la copia al inventario si corresponde.
     es_devolucion = nuevo_estado in ("Devuelto a tiempo", "Devuelto atrasado")
     try:
         prestamo.estado = nuevo_estado
-        if es_devolucion:
-            libro = prestamo.libro
-            if libro:
-                libro.copias_disponibles = (libro.copias_disponibles or 0) + 1
-        sesion.commit()  # commit directo, sin with begin
+        if es_devolucion and prestamo.libro:
+            prestamo.libro.copias_disponibles = (prestamo.libro.copias_disponibles or 0) + 1
+        sesion.commit()
         return prestamo
     except Exception:
         sesion.rollback()
         raise
 
 
-# ---------- Interfaz / Helpers ----------
-def mostrar_prestamos_tabla(sesion: Session, prestamos=None):
-    if prestamos is None:
-        prestamos = obtener_prestamos(sesion)
+def obtener_prestamos_atrasados(sesion: Session):
+    # Realiza un REPORTE de todos los préstamos pendientes que ya están vencidos. 
+    hoy = date.today()
+    return sesion.query(Prestamo).filter(
+        Prestamo.estado == 'Pendiente',
+        Prestamo.fecha_vencimiento < hoy
+    ).all()
 
-    if not prestamos:  #Si no hubieran préstamos
-        print("No hay préstamos registrados.")
+
+def obtener_prestamos_por_usuario(sesion: Session, rut_usuario: str):
+    # Retorna todos los préstamos de un usuario, independientemente de su estado.
+    return sesion.query(Prestamo).filter(Prestamo.rut_usuario == rut_usuario).all()
+
+
+# ---------- Interfaz / Helpers ----------
+
+def mostrar_prestamos_tabla(prestamos):
+    # Recibe una lista de préstamos y muestra en formato PrettyTable o mensaje si está vacía.
+    if not prestamos:
+        print("No hay préstamos para mostrar.")
         return
 
     tabla = PrettyTable()
@@ -108,90 +128,29 @@ def mostrar_prestamos_tabla(sesion: Session, prestamos=None):
         ])
     print(tabla)
 
+
 def listar_prestamos_pendientes_usuario(sesion: Session, rut: str):
+    # Muestra préstamos pendientes de un usuario específico.
     pendientes = obtener_prestamos_pendientes_por_usuario(sesion, rut)
     if not pendientes:
-        print("No se encontraron préstamos pendientes para ese usuario.")
+        print(f"El usuario {rut} no tiene préstamos pendientes.")
         return
-    mostrar_prestamos_tabla(sesion, pendientes)
+    mostrar_prestamos_tabla(pendientes)
 
-# ---------- CLI ----------
-def menu_prestamos():
-    print("\n=== MENÚ PRÉSTAMOS ===")
-    print("1. Agregar préstamo (por nombre de libro)")
-    print("2. Listar préstamos pendientes por RUT")
-    print("3. Devolver libro (editar estado)")
-    print("4. Eliminar préstamo")
-    print("5. Mostrar todos los préstamos")
-    print("0. Salir")
-    return input("Elige una opción: ").strip()
 
-def main():
-    sesion = crear_sesion()
-    while True:
-        opcion = menu_prestamos()
+def listar_prestamos_por_usuario(sesion: Session, rut: str):
+    # Muestra todos los préstamos de un usuario, sin importar el estado.
+    prestamos = obtener_prestamos_por_usuario(sesion, rut)
+    if not prestamos:
+        print(f"El usuario {rut} no tiene préstamos registrados.")
+        return
+    mostrar_prestamos_tabla(prestamos)
 
-        if opcion == "1":
-            rut = input("RUT del usuario: ").strip()
-            nombre_libro = input("Nombre del libro (sin tildes es ok): ").strip()
-            fecha_inicio_str = input("Fecha inicio (DD-MM-YYYY): ").strip()
-            fecha_vencimiento_str = input("Fecha vencimiento (DD-MM-YYYY): ").strip()
-            try:
-                fecha_inicio = parse_fecha(fecha_inicio_str)
-                fecha_vencimiento = parse_fecha(fecha_vencimiento_str)
-            except ValueError as e:
-                print(e)
-                continue
 
-            prestamo, err = agregar_prestamo_por_nombre(sesion, rut, nombre_libro, fecha_inicio, fecha_vencimiento)
-            if err:
-                print("No se pudo agregar el préstamo:", err)
-            else:
-                print(f"Préstamo creado: ID {prestamo.id_prestamo} - Libro: {prestamo.libro.nombre_libro}")
-
-        elif opcion == "2":
-            rut = input("RUT del usuario: ").strip()
-            listar_prestamos_pendientes_usuario(sesion, rut)
-
-        elif opcion == "3":
-            rut = input("RUT del usuario: ").strip()
-            nombre_libro = input("Nombre del libro a devolver: ").strip()
-            prestamo = obtener_prestamo_por_usuario_y_libro(sesion, rut, nombre_libro)
-            if prestamo:
-                print(f"Préstamo encontrado: ID {prestamo.id_prestamo} - Libro: {prestamo.libro.nombre_libro}")
-                print("1. Devuelto a tiempo\n2. Devuelto atrasado")
-                opcion_estado = input("Elige el estado: ").strip()
-                if opcion_estado == "1":
-                    nuevo_estado = "Devuelto a tiempo"
-                elif opcion_estado == "2":
-                    nuevo_estado = "Devuelto atrasado"
-                else:
-                    print("Opción inválida.")
-                    continue
-                editar_prestamo_estado(sesion, prestamo, nuevo_estado)
-                print("Préstamo actualizado.")
-            else:
-                print("No se encontró préstamo pendiente para ese libro y usuario.")
-
-        elif opcion == "4":
-            rut = input("RUT del usuario: ").strip()
-            nombre_libro = input("Nombre del libro: ").strip()
-            prestamo = obtener_prestamo_por_usuario_y_libro(sesion, rut, nombre_libro)
-            if prestamo:
-                eliminar_prestamo(sesion, prestamo)
-                print("Préstamo eliminado.")
-            else:
-                print("No se encontró préstamo pendiente para ese libro y usuario.")
-
-        elif opcion == "5":
-            mostrar_prestamos_tabla(sesion)
-
-        elif opcion == "0":
-            print("Saliendo del programa...")
-            break
-
-        else:
-            print("Opción no válida, intenta nuevamente.")
-
-if __name__ == "__main__":
-    main()
+def listar_prestamos_atrasados(sesion: Session):
+    # Muestra todos los préstamos pendientes que están vencidos.
+    atrasados = obtener_prestamos_atrasados(sesion)
+    if not atrasados:
+        print("No hay préstamos atrasados.")
+        return
+    mostrar_prestamos_tabla(atrasados)
