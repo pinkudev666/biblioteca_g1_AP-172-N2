@@ -11,10 +11,11 @@ def menu_usuarios():
     print("\n=== MENÚ USUARIOS ===")
     print("1. Crear usuario")
     print("2. Buscar usuario por RUT")
-    print("3. Actualizar usuario")
-    print("4. Eliminar usuario (borrado lógico)")
-    print("5. Activar usuario inactivo")
-    print("6. Listar usuarios activos")
+    print("3. Listar usuarios por tipo de usuario")
+    print("4. Actualizar usuario")
+    print("5. Eliminar usuario (borrado lógico)")
+    print("6. Activar usuario inactivo")
+    print("7. Listar usuarios activos")
     print("0. Salir")
     return input("Elige una opción: ").strip()
 
@@ -75,8 +76,18 @@ def main():
                     mostrar_usuario_tabla(u)
                 else:
                     print("Usuario no encontrado.")
-
+            
             elif opcion == "3":
+                nombre = input("Nombre del tipo de usuario: ").strip()
+                usuarios = negocio.listar_usuarios_por_tipo(nombre)
+
+                if usuarios is None:
+                    print(f"No existe un tipo de usuario llamado '{nombre}'.")
+                else:
+                    mostrar_usuarios_tabla(usuarios)
+
+
+            elif opcion == "4":
                 rut = input("Ingrese RUT del usuario a actualizar: ").strip()
                 nombre = input("Nuevo nombre (Enter para omitir): ").strip()
                 correo = input("Nuevo correo (Enter para omitir): ").strip()
@@ -95,7 +106,7 @@ def main():
                 except Exception as e:
                     print(e)
 
-            elif opcion == "4":
+            elif opcion == "5":
                 rut = input("Ingrese RUT del usuario a eliminar: ").strip()
                 try:
                     u = negocio.eliminar_usuario(rut)
@@ -107,7 +118,7 @@ def main():
                 except Exception as e:
                     print(e)
 
-            elif opcion == "5":
+            elif opcion == "6":
                 rut = input("Ingrese RUT del usuario a activar: ").strip()
                 try:
                     u = negocio.activar_usuario(rut)
@@ -119,7 +130,7 @@ def main():
                 except Exception as e:
                     print(e)
 
-            elif opcion == "6":
+            elif opcion == "7":
                 usuarios = negocio.obtener_usuarios()
                 mostrar_usuarios_tabla(usuarios)
 

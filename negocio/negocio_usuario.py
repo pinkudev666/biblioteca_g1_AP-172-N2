@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from datos.conexion import Session
 from modelos.usuario import Usuario
 from auxiliares.comparar_strings import *
+from modelos.tipo_usuario import Tipo_usuario
+from typing import List, Dict
 
 class UsuarioNegocio:
     def __init__(self):
@@ -52,8 +54,17 @@ class UsuarioNegocio:
         if solo_activos:
             q = q.filter(Usuario.usuario_activo == True)
         return q.first()
+    
+    # 3. Función para listar usuarios por tipo de usuario (nombre_tipo)
+    def listar_usuarios_por_tipo(self, nombre_tipo_usuario: str):
+        tipo = self.session.query(Tipo_usuario).filter_by(tipo_usuario=nombre_tipo_usuario).first()
+        if not tipo:
+            return None  # None = tipo no existe
+        usuarios = self.session.query(Usuario).filter_by(id_tipo_usuario=tipo.id_tipo_usuario).all()
+        return usuarios  # [] = tipo existe pero sin usuarios
 
-    # 3. Función para actualizar datos de un usuario existente
+
+    # 4. Función para actualizar datos de un usuario existente
     def actualizar_usuario(self, rut, **kwargs):
         try:
             rut_normalizado = normalizar_rut(rut)
@@ -112,7 +123,7 @@ class UsuarioNegocio:
                 pass
             raise Exception(f"Error al actualizar usuario: {e}")
 
-    # 4. Borrar usuario mediante borrado lógico (cambiar estado a inactivo)
+    # 5. Borrar usuario mediante borrado lógico (cambiar estado a inactivo)
     def eliminar_usuario(self, rut):
         try:
             usuario = self.session.query(Usuario).filter(
@@ -138,7 +149,7 @@ class UsuarioNegocio:
         except Exception:
             pass
 
-    # 5. Activar usuario (cambiar estado a activo)
+    # 6. Activar usuario (cambiar estado a activo)
     def activar_usuario(self, rut):
         try:
             usuario = self.session.query(Usuario).filter(
@@ -159,7 +170,7 @@ class UsuarioNegocio:
             raise Exception(f"Error al activar usuario: {e}")
 
 
-    # 6. Función para obtener lista de usuarios ACTIVOS
+    # 7. Función para obtener lista de usuarios ACTIVOS
     def obtener_usuarios(self, solo_activos=True):
         q = self.session.query(Usuario)
         if solo_activos:
