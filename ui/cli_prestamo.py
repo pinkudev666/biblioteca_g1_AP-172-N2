@@ -14,7 +14,7 @@ def menu_prestamos():
     print("2. Cambiar estado de préstamo")
     print("3. Listar préstamos pendientes de un usuario")
     print("4. Listar todos los préstamos de un usuario")
-    print("5. Listar préstamos atrasados")
+    print("5. Reporte préstamos atrasados")
     print("0. Salir")
     return input("Elige una opción: ")
 
