@@ -1,34 +1,27 @@
 import sys
 from pathlib import Path
 
-
 # agregar raíz del proyecto al sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from datetime import datetime, date
-from negocio.negocio_prestamo import (
-    agregar_prestamo_por_nombre,
-    editar_prestamo_estado,
-    listar_prestamos_pendientes_usuario,
-    listar_prestamos_por_usuario,
-    listar_prestamos_atrasados,
-    obtener_prestamo_por_usuario_y_libro
-)
 from datos.conexion import Session as crear_sesion
+from negocio.negocio_prestamo import NegocioPrestamo
+from datetime import date, datetime
 
-# ---------- CLI ----------
 def menu_prestamos():
     print("\n=== MENÚ PRÉSTAMOS ===")
     print("1. Agregar préstamo")
     print("2. Cambiar estado de préstamo")
     print("3. Listar préstamos pendientes de un usuario")
     print("4. Listar todos los préstamos de un usuario")
-    print("5. Reporte de préstamos atrasados")
+    print("5. Listar préstamos atrasados")
     print("0. Salir")
     return input("Elige una opción: ")
 
 def main():
     sesion = crear_sesion()
+    negocio_prestamo = NegocioPrestamo(sesion)
+
     while True:
         opcion = menu_prestamos()
 
@@ -37,41 +30,80 @@ def main():
                 rut = input("RUT del usuario: ")
                 nombre_libro = input("Nombre del libro: ")
 
-                # Opcional: ingresar fechas
-                fecha_inicio_input = input("Fecha de inicio (dd-mm-aaaa) o Enter para hoy: ")
-                fecha_vencimiento_input = input("Fecha de vencimiento (dd-mm-aaaa) o Enter para 5 días después: ")
+                fecha_inicio_str = input("Fecha de inicio (dd-mm-aaaa, Enter = hoy): ")
+                fecha_vencimiento_str = input("Fecha de vencimiento (dd-mm-aaaa, Enter = inicio + 5 días): ")
 
-                fecha_inicio = datetime.strptime(fecha_inicio_input, "%d-%m-%Y").date() if fecha_inicio_input else None
-                fecha_vencimiento = datetime.strptime(fecha_vencimiento_input, "%d-%m-%Y").date() if fecha_vencimiento_input else None
+                prestamo, error = negocio_prestamo.agregar_prestamo_por_nombre(
+                    rut, nombre_libro, fecha_inicio_str or None, fecha_vencimiento_str or None
+                )
 
-                prestamo, error = agregar_prestamo_por_nombre(sesion, rut, nombre_libro, fecha_inicio, fecha_vencimiento)
                 if prestamo:
-                    print(f"Préstamo creado correctamente: {prestamo.id_prestamo}")
+                    print("Préstamo creado exitosamente:")
+                    negocio_prestamo.mostrar_prestamos_tabla([prestamo])
                 else:
                     print(f"No se pudo crear el préstamo: {error}")
-
+            
             elif opcion == "2":
-                rut = input("RUT del usuario: ")
-                nombre_libro = input("Nombre del libro: ")
-                prestamo = obtener_prestamo_por_usuario_y_libro(sesion, rut, nombre_libro)
-                if prestamo:
-                    print(f"Préstamo encontrado: ID {prestamo.id_prestamo}, Estado: {prestamo.estado}")
-                    nuevo_estado = input("Nuevo estado (Pendiente / Devuelto a tiempo / Devuelto atrasado): ")
-                    editar_prestamo_estado(sesion, prestamo, nuevo_estado)
-                    print("Estado actualizado correctamente.")
+                rut = input("RUT del usuario: ").strip()
+                nombre_libro = input("Nombre del libro del préstamo: ").strip()
+
+                # Obtenemos todos los préstamos coincidentes
+                prestamos = negocio_prestamo.obtener_prestamos_por_usuario_y_libro(rut, nombre_libro)
+
+                if not prestamos:
+                    print("No se encontraron préstamos para ese usuario y libro.")
+                    continue
+
+                # Selección si hay varios préstamos coincidentes
+                if len(prestamos) > 1:
+                    print("Se encontraron varios préstamos que coinciden:")
+                    negocio_prestamo.mostrar_prestamos_tabla(prestamos)
+                    while True:
+                        try:
+                            indice = int(input("Elige el ID del préstamo a editar: "))
+                            prestamo = next((p for p in prestamos if p.id_prestamo == indice), None)
+                            if prestamo:
+                                break
+                            else:
+                                print("ID no válido, intenta nuevamente.")
+                        except ValueError:
+                            print("Debes ingresar un número válido.")
                 else:
-                    print("No se encontró un préstamo pendiente para ese libro y usuario.")
+                    prestamo = prestamos[0]
+
+                print(f"Préstamo actual: {prestamo.estado}")
+                # Normalizamos input para evitar problemas de mayúsculas y espacios
+                nuevo_estado = input("Nuevo estado (Pendiente, Devuelto a tiempo, Devuelto atrasado): ").strip().title()
+
+                # Preguntar fecha si es devolución
+                if nuevo_estado.lower() in ("devuelto a tiempo", "devuelto atrasado"):
+                    fecha_dev_str = input("Fecha de devolución (dd-mm-aaaa, Enter = hoy): ").strip()
+                    if fecha_dev_str:
+                        try:
+                            fecha_dev = datetime.strptime(fecha_dev_str, "%d-%m-%Y").date()
+                        except ValueError:
+                            print("Formato inválido. Se usará la fecha de hoy.")
+                            fecha_dev = date.today()
+                    else:
+                        fecha_dev = date.today()
+                    negocio_prestamo.editar_prestamo_estado(prestamo, nuevo_estado, fecha_dev)
+                else:
+                    negocio_prestamo.editar_prestamo_estado(prestamo, nuevo_estado)
+
+                print("Préstamo actualizado:")
+                negocio_prestamo.mostrar_prestamos_tabla([prestamo])
+
 
             elif opcion == "3":
                 rut = input("RUT del usuario: ")
-                listar_prestamos_pendientes_usuario(sesion, rut)
+                negocio_prestamo.listar_prestamos_pendientes_usuario(rut)
 
             elif opcion == "4":
                 rut = input("RUT del usuario: ")
-                listar_prestamos_por_usuario(sesion, rut)
+                negocio_prestamo.listar_prestamos_por_usuario(rut)
 
             elif opcion == "5":
-                listar_prestamos_atrasados(sesion)
+                negocio_prestamo.listar_prestamos_atrasados()
 
             elif opcion == "0":
                 print("Saliendo del programa...")
