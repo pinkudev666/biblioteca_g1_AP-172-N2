@@ -64,6 +64,20 @@ class NegocioPrestamo:
         if not usuario.usuario_activo:
             return None, "Usuario inactivo. No puede solicitar préstamos"
 
+        # Validación de préstamos pendientes vencidos
+        hoy = date.today()
+        prestamos_pendientes = (
+            self.sesion.query(Prestamo)
+            .filter(
+                Prestamo.rut_usuario == rut_usuario,
+                Prestamo.estado == 'Pendiente',
+                Prestamo.fecha_vencimiento < hoy  # ya vencido
+            )
+            .all()
+        )
+        if prestamos_pendientes:
+            return None, "No puede pedir un nuevo préstamo: tiene préstamos pendientes vencidos"
+
         # Buscar libros
         libros = self.negocio_libro.buscar_libros_por_nombre(nombre_libro)
         if not libros:
@@ -108,7 +122,8 @@ class NegocioPrestamo:
             return None, "Error al crear préstamo (integrity)"
         except Exception as e:
             self.sesion.rollback()
-            return None, f"Error al crear préstamo: {e}"
+        return None, f"Error al crear préstamo: {e}"
+
 
     def editar_prestamo_estado(self, prestamo, nuevo_estado: str, fecha_devolucion: date = None):
         """

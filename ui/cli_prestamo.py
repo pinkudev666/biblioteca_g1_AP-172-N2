@@ -42,7 +42,8 @@ def main():
                     negocio_prestamo.mostrar_prestamos_tabla([prestamo])
                 else:
                     print(f"No se pudo crear el préstamo: {error}")
-            
+
+
             elif opcion == "2":
                 rut = input("RUT del usuario: ").strip()
                 nombre_libro = input("Nombre del libro del préstamo: ").strip()
@@ -58,16 +59,38 @@ def main():
                 if len(prestamos) > 1:
                     print("Se encontraron varios préstamos que coinciden:")
                     negocio_prestamo.mostrar_prestamos_tabla(prestamos)
-                    while True:
+
+                    prestamo = None
+                    intentos = 0
+                    max_intentos = 3
+
+                    while intentos < max_intentos:
+                        entrada = input(
+                            f"Elige el ID del préstamo a editar (Tiene 3 intentos en caso de error. Intento {intentos + 1}/{max_intentos}, Enter para cancelar): "
+                        ).strip()
+                        if not entrada:
+                            print("Operación cancelada.")
+                            break
                         try:
-                            indice = int(input("Elige el ID del préstamo a editar: "))
+                            indice = int(entrada)
                             prestamo = next((p for p in prestamos if p.id_prestamo == indice), None)
                             if prestamo:
                                 break
                             else:
-                                print("ID no válido, intenta nuevamente.")
+                                intentos += 1
+                                if intentos < max_intentos:
+                                    print(f"ID no válido, intenta nuevamente ({max_intentos - intentos} intentos restantes).")
+                                else:
+                                    print("Has agotado los intentos. Volviendo al menú principal.")
                         except ValueError:
-                            print("Debes ingresar un número válido.")
+                            intentos += 1
+                            if intentos < max_intentos:
+                                print(f"Debes ingresar un número válido ({max_intentos - intentos} intentos restantes).")
+                            else:
+                                print("Has agotado los intentos. Volviendo al menú principal.")
+
+                    if prestamo is None:
+                        continue  # vuelve al menú principal si no se seleccionó un préstamo válido
                 else:
                     prestamo = prestamos[0]
 
@@ -92,6 +115,7 @@ def main():
 
                 print("Préstamo actualizado:")
                 negocio_prestamo.mostrar_prestamos_tabla([prestamo])
+
 
 
             elif opcion == "3":
