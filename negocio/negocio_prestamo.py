@@ -125,22 +125,48 @@ class NegocioPrestamo:
         return None, f"Error al crear préstamo: {e}"
 
 
-    def editar_prestamo_estado(self, prestamo, nuevo_estado: str, fecha_devolucion: date = None):
+    def editar_prestamo_estado(self, prestamo, nuevo_estado: str = None, fecha_devolucion: date = None):
         """
         Cambia el estado de un préstamo y registra fecha de devolución si corresponde.
+        - Si nuevo_estado es None o cadena vacía, mantiene el estado actual.
+        - Si el préstamo pasa de un estado NO-devolución a un estado de devolución
+        ('Devuelto a tiempo' / 'Devuelto atrasado'), se registra fecha_devolucion
+        (o la fecha de hoy) y se incrementa el stock del libro.
+        - Si ya estaba en devolución, permite actualizar la fecha_devolucion si se provee.
+        Nota: no se hace ningún ajuste inverso automático del stock si se revierte la devolución.
         """
-        es_devolucion = nuevo_estado.lower() in ("devuelto a tiempo", "devuelto atrasado")
+        # Normalizar y proteger contra cadena vacía
+        if nuevo_estado is None or (isinstance(nuevo_estado, str) and not nuevo_estado.strip()):
+            nuevo_estado = prestamo.estado
+
+        # Asegurar que sea string limpio (siempre que sea string)
+        if isinstance(nuevo_estado, str):
+            nuevo_estado = nuevo_estado.strip()
+
+        es_devolucion_new = isinstance(nuevo_estado, str) and nuevo_estado.lower() in ("devuelto a tiempo", "devuelto atrasado")
+        es_devolucion_old = (prestamo.estado or "").lower() in ("devuelto a tiempo", "devuelto atrasado")
+
         try:
-            prestamo.estado = nuevo_estado
-            if es_devolucion:
+            # Si estamos pasando de NO-devolución -> devolucion: set fecha y aumentar stock
+            if es_devolucion_new and not es_devolucion_old:
                 prestamo.fecha_devolucion = fecha_devolucion or date.today()
                 if prestamo.libro:
                     prestamo.libro.copias_disponibles = (prestamo.libro.copias_disponibles or 0) + 1
+
+            # Si ya estaba en devolución y entregan una fecha, actualizamos la fecha
+            elif es_devolucion_new and es_devolucion_old:
+                if fecha_devolucion:
+                    prestamo.fecha_devolucion = fecha_devolucion
+
+            # Asignar el nuevo estado (o el mismo, si se dejó en blanco)
+            prestamo.estado = nuevo_estado
+
             self.sesion.commit()
             return prestamo
         except Exception:
             self.sesion.rollback()
             raise
+
 
     def obtener_prestamos_atrasados(self):
         """Retorna todos los préstamos pendientes que ya están vencidos."""

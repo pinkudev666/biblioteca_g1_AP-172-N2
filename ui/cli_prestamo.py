@@ -95,11 +95,20 @@ def main():
                     prestamo = prestamos[0]
 
                 print(f"Préstamo actual: {prestamo.estado}")
-                # Normalizamos input para evitar problemas de mayúsculas y espacios
-                nuevo_estado = input("Nuevo estado (Pendiente, Devuelto a tiempo, Devuelto atrasado): ").strip().title()
 
-                # Preguntar fecha si es devolución
-                if nuevo_estado.lower() in ("devuelto a tiempo", "devuelto atrasado"):
+                # Leer input tal cual; si queda vacío, mandamos None (el negocio mantendrá el valor)
+                nuevo_estado_raw = input("Nuevo estado (Pendiente, Devuelto a tiempo, Devuelto atrasado), Enter = mantener estado: ").strip()
+                nuevo_estado = None if not nuevo_estado_raw else nuevo_estado_raw.title()
+
+                # Validar que, si el usuario escribió algo, sea uno de los estados permitidos
+                estados_permitidos = {"Pendiente", "Devuelto A Tiempo", "Devuelto Atrasado"}
+                if nuevo_estado is not None and nuevo_estado not in estados_permitidos:
+                    print("Estado no reconocido. Se mantendrá el estado actual.")
+                    nuevo_estado = None  # esto hace que el método de negocio conserve el estado
+
+                # Si se detecta que será una devolución (y el usuario escribió algo), pedir fecha
+                fecha_dev = None
+                if nuevo_estado is not None and nuevo_estado.lower() in ("devuelto a tiempo", "devuelto atrasado"):
                     fecha_dev_str = input("Fecha de devolución (dd-mm-aaaa, Enter = hoy): ").strip()
                     if fecha_dev_str:
                         try:
@@ -109,14 +118,15 @@ def main():
                             fecha_dev = date.today()
                     else:
                         fecha_dev = date.today()
+
+                # Llamar al negocio siempre: si nuevo_estado es None, la función lo interpretará como 'mantener'
+                if fecha_dev:
                     negocio_prestamo.editar_prestamo_estado(prestamo, nuevo_estado, fecha_dev)
                 else:
                     negocio_prestamo.editar_prestamo_estado(prestamo, nuevo_estado)
 
                 print("Préstamo actualizado:")
                 negocio_prestamo.mostrar_prestamos_tabla([prestamo])
-
-
 
             elif opcion == "3":
                 rut = input("RUT del usuario: ")
