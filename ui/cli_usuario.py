@@ -81,7 +81,7 @@ def main():
                 nombre = input("Nombre del tipo de usuario: ").strip()
                 usuarios = negocio.listar_usuarios_por_tipo(nombre)
 
-                if usuarios is None:
+                if not usuarios:
                     print(f"No existe un tipo de usuario llamado '{nombre}'.")
                 else:
                     mostrar_usuarios_tabla(usuarios)

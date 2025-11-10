@@ -57,12 +57,22 @@ class UsuarioNegocio:
     
     # 3. Función para listar usuarios por tipo de usuario (nombre_tipo)
     def listar_usuarios_por_tipo(self, nombre_tipo_usuario: str):
-        tipo = self.session.query(Tipo_usuario).filter_by(tipo_usuario=nombre_tipo_usuario).first()
-        if not tipo:
-            return None  # None = tipo no existe
-        usuarios = self.session.query(Usuario).filter_by(id_tipo_usuario=tipo.id_tipo_usuario).all()
-        return usuarios  # [] = tipo existe pero sin usuarios
-
+        # Normalizamos a minúsculas
+        nombre_tipo_usuario = nombre_tipo_usuario.lower()
+        
+        # Buscamos tipos que contengan la cadena escrita
+        tipos = self.session.query(Tipo_usuario).filter(
+            Tipo_usuario.tipo_usuario.ilike(f"%{nombre_tipo_usuario}%")
+        ).all()
+        
+        if not tipos:
+            return []  # Ningún tipo coincide
+        
+        usuarios = []
+        for tipo in tipos:
+            usuarios.extend(self.session.query(Usuario).filter_by(id_tipo_usuario=tipo.id_tipo_usuario).all())
+        
+        return usuarios
 
     # 4. Función para actualizar datos de un usuario existente
     def actualizar_usuario(self, rut, **kwargs):
