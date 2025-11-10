@@ -9,13 +9,18 @@ class NegocioLibro:
         self.sesion = sesion
 
     def obtener_listado_libros(self):
-        # Devuelve todos los libros en la base de datos.
-        return self.sesion.query(Libro).all()
+        # Devuelve solo libros activos en la base de datos
+        return self.sesion.query(Libro).filter(Libro.activo == True).all()
+
+    def obtener_libros_inactivos(self):
+        """Devuelve todos los libros que están inactivos."""
+        return self.sesion.query(Libro).filter(Libro.activo == False).all()
 
     def buscar_libros_por_nombre(self, buscar_libro: str):
         """
         Devuelve libros cuyo nombre contenga parcial o insensiblemente
         el término de búsqueda, ignorando tildes y mayúsculas.
+        Solo libros activos.
         """
         buscar_libro_norm = normalizar_string(buscar_libro)
         libros = self.obtener_listado_libros()
@@ -26,7 +31,6 @@ class NegocioLibro:
         return libros_filtrados
 
     def mostrar_libros_tabla(self, libros):
-        # Muestra libros en tabla para CLI.
         tabla = PrettyTable()
         tabla.field_names = ["Índice", "Nombre", "Autor", "Copias disponibles"]
         for i, libro in enumerate(libros, start=1):
@@ -39,10 +43,10 @@ class NegocioLibro:
         print(tabla)
 
     def agregar_libro(self, nombre, isbn, autor, copias):
-        # Agrega un libro nuevo si no existe otro con el mismo nombre exacto.
-        libros_existentes = self.buscar_libros_por_nombre(nombre)
+        # Agrega un libro nuevo si no existe otro con el mismo nombre exacto
+        libros_existentes = self.sesion.query(Libro).filter(Libro.activo == True).all()
         if any(normalizar_string(l.nombre_libro) == normalizar_string(nombre) for l in libros_existentes):
-            return None  # Ya existe un libro con ese nombre exacto
+            return None  # Ya existe un libro activo con ese nombre exacto
         nuevo_libro = Libro(
             nombre_libro=nombre.title(),
             isbn_libro=isbn,
@@ -67,6 +71,12 @@ class NegocioLibro:
         return libro
 
     def eliminar_libro(self, libro):
-        # Elimina un libro de la base de datos.
-        self.sesion.delete(libro)
+        # Borrado lógico en lugar de físico
+        libro.activo = False
         self.sesion.commit()
+        return libro
+
+    def reactivar_libro(self, libro):
+        libro.activo = True
+        self.sesion.commit()
+        return libro

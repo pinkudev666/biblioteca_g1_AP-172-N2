@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 from .base import Base
 
@@ -10,8 +10,10 @@ class Libro(Base):
     nombre_libro = Column(String(150), nullable=False)
     autor_libro = Column(String(100), nullable=False)
     copias_disponibles = Column(Integer, default=0)
+    activo = Column(Boolean, default=True, nullable=False)
 
-    prestamos = relationship('Prestamo', back_populates='libro', cascade='all, delete-orphan')
+    #Relación con préstamos 1:n
+    prestamos = relationship('Prestamo', back_populates='libro')
 
     def __repr__(self) -> str:
         return f"<Libro(id={self.id_libro}, isbn={self.isbn_libro!r}, nombre={self.nombre_libro!r})>"
